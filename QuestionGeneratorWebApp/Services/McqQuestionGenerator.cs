@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using System.Drawing;
+using System.IO.Packaging;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using W = DocumentFormat.OpenXml.Wordprocessing;
@@ -113,10 +114,91 @@ public static class McqQuestionGenerator
                 outMain.Document.Save();
             }
 
+            // Fix image paths after document creation to match modern Word format
+            FixImagePaths(finalDocPath);
+
             createdFiles.Add(outputFileName);
         }
 
         return createdFiles;
+    }
+
+    // Move images from /media/ to /word/media/ and update relationships
+    private static void FixImagePaths(string docPath)
+    {
+        try
+        {
+            using (var package = System.IO.Packaging.Package.Open(docPath, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var imageParts = package.GetParts().Where(p => 
+                    p.Uri.ToString().StartsWith("/media/") && 
+                    (p.ContentType.StartsWith("image/"))).ToList();
+
+                if (imageParts.Count == 0) return;
+
+                // Dictionary to map old URIs to new URIs
+                var uriMap = new Dictionary<string, string>();
+
+                // Copy images to /word/media/ and collect URI mappings
+                foreach (var oldPart in imageParts)
+                {
+                    string oldUri = oldPart.Uri.ToString();
+                    string fileName = Path.GetFileName(oldUri);
+                    string newUri = $"/word/media/{fileName}";
+
+                    uriMap[oldUri] = newUri;
+
+                    // Create new part with correct URI
+                    var newPart = package.CreatePart(new Uri(newUri, UriKind.Relative), 
+                        oldPart.ContentType, CompressionOption.Normal);
+
+                    // Copy data
+                    using (var oldStream = oldPart.GetStream())
+                    using (var newStream = newPart.GetStream())
+                    {
+                        oldStream.CopyTo(newStream);
+                    }
+                }
+
+                // Update relationships in /word/_rels/document.xml.rels
+                var docRelsPart = package.GetPart(new Uri("/word/_rels/document.xml.rels", UriKind.Relative));
+                if (docRelsPart != null)
+                {
+                    string relsContent;
+                    using (var stream = docRelsPart.GetStream())
+                    using (var reader = new StreamReader(stream))
+                    {
+                        relsContent = reader.ReadToEnd();
+                    }
+
+                    // Replace absolute paths with relative paths
+                    foreach (var mapping in uriMap)
+                    {
+                        // Change from Target="/media/image1.jpeg" to Target="media/image1.jpeg"
+                        relsContent = relsContent.Replace(
+                            $"Target=\"{mapping.Key}\"",
+                            $"Target=\"{Path.GetFileName(mapping.Value)}\"");
+                    }
+
+                    // Write updated relationships
+                    using (var stream = docRelsPart.GetStream(FileMode.Create))
+                    using (var writer = new StreamWriter(stream))
+                    {
+                        writer.Write(relsContent);
+                    }
+                }
+
+                // Delete old image parts from /media/
+                foreach (var oldPart in imageParts)
+                {
+                    package.DeletePart(oldPart.Uri);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // If fix fails, document still works, just not in modern format
+        }
     }
 
     // Ensure styles/settings/sectPr exist like Word

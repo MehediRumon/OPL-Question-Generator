@@ -1,0 +1,6 @@
+@QuestionGeneratorWebApp_HostAddress = http://localhost:5182
+
+GET {{QuestionGeneratorWebApp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

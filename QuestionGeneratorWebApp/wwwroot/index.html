@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; }
+        .tab { flex: 1; padding: 20px; text-align: center; cursor: pointer; background: #f8f9fa; border: none; font-size: 1.1em; font-weight: 600; transition: all 0.3s; color: #495057; }
+        .tab:hover { background: #e9ecef; }
+        .tab.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
+        .content { padding: 30px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 1em; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="file"] { width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em; transition: border-color 0.3s; }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+        .form-group small { display: block; margin-top: 5px; color: #6c757d; font-size: 0.9em; }
+        .checkbox-inline { display: flex; align-items: center; gap: 10px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .hidden { display: none; }
+        .btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { background: #adb5bd; cursor: not-allowed; box-shadow: none; }
+        .alert { padding: 15px 20px; border-radius: 8px; margin-top: 20px; animation: slideDown 0.3s; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .download-link { display: inline-block; margin-top: 10px; color: #667eea; text-decoration: none; font-weight: 600; transition: color 0.3s; }
+        .download-link:hover { color: #764ba2; text-decoration: underline; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .header h1 { font-size: 1.8em; } .tab { padding: 15px 10px; font-size: 0.9em; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Question Generator</h1>
+            <p>Generate MCQ and SAQ question documents easily</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('mcq')">Generate MCQ</button>
+            <button class="tab" onclick="switchTab('saq')">Generate SAQ</button>
+            <button class="tab" onclick="switchTab('answer')">Add Answer Tag</button>
+            <button class="tab" onclick="switchTab('subject')">Add Subject Name</button>
+        </div>
+
+        <div class="content">
+            <!-- MCQ Generation Tab -->
+            <div id="mcq" class="tab-content active">
+                <h2 style="margin-bottom: 25px; color: #333;">Generate MCQ Questions</h2>
+                <form id="mcqForm">
+                    <div class="form-group">
+                        <label>Number of Questions:</label>
+                        <input type="number" id="mcqQuestionNumber" value="100" min="1" required>
+                        <small>Enter the total number of questions to generate</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject List (comma-separated):</label>
+                        <input type="text" id="mcqSubjectList" value="phy, chem, math, bio" required>
+                        <small>Example: phy, chem, math, bio</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Sequence List (ranges):</label>
+                        <input type="text" id="mcqSequenceList" value="1-25,26-50,51-75,76-100" required>
+                        <small>Example: 1-25,26-50,51-75,76-100</small>
+                    </div>
+                    <div class="form-group checkbox-inline">
+                        <input type="checkbox" id="mcqIncludeAnswerTags">
+                        <label for="mcqIncludeAnswerTags">Include Answer Tags</label>
+                    </div>
+                    <div class="form-group checkbox-inline">
+                        <input type="checkbox" id="mcqMultiSet">
+                        <label for="mcqMultiSet">Generate Multiple Sets</label>
+                    </div>
+                    <div id="mcqSetCountGroup" class="form-group hidden">
+                        <label>Set Count:</label>
+                        <input type="number" id="mcqSetCount" value="2" min="2">
+                        <small>Generate N sets (e.g., 2 → Set-1 and Set-2)</small>
+                    </div>
+                    <button type="submit" class="btn">Generate MCQ Document(s)</button>
+                    <div id="mcqLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Generating document... Please wait</p>
+                    </div>
+                    <div id="mcqResult"></div>
+                </form>
+            </div>
+
+            <!-- SAQ Generation Tab -->
+            <div id="saq" class="tab-content">
+                <h2 style="margin-bottom: 25px; color: #333;">Generate SAQ Questions</h2>
+                <form id="saqForm">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Number of Questions:</label>
+                            <input type="number" id="saqQuestionNumber" value="100" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Question Mark:</label>
+                            <input type="number" id="saqQuestionMark" value="2" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject List (Bangla - comma-separated):</label>
+                        <input type="text" id="saqSubjectListBangla" value="পদার্থবিজ্ঞান, রসায়ন" required>
+                        <small>Example: পদার্থবিজ্ঞান, রসায়ন</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject List (English - comma-separated):</label>
+                        <input type="text" id="saqSubjectListEnglish" value="Phy,Chem" required>
+                        <small>Example: Phy,Chem</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Sequence List (ranges):</label>
+                        <input type="text" id="saqSequenceList" value="1-50,51-100" required>
+                        <small>Example: 1-50,51-100</small>
+                    </div>
+                    <div class="form-group checkbox-inline">
+                        <input type="checkbox" id="saqMultiSet">
+                        <label for="saqMultiSet">Generate Multiple Sets</label>
+                    </div>
+                    <div id="saqSetCountGroup" class="form-group hidden">
+                        <label>Set Count:</label>
+                        <input type="number" id="saqSetCount" value="2" min="2">
+                        <small>Generate N sets (e.g., 2 → Set-1 and Set-2)</small>
+                    </div>
+                    <button type="submit" class="btn">Generate SAQ Documents</button>
+                    <div id="saqLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Generating documents... Please wait</p>
+                    </div>
+                    <div id="saqResult"></div>
+                </form>
+            </div>
+
+            <!-- Add Answer Tag Tab -->
+            <div id="answer" class="tab-content">
+                <h2 style="margin-bottom: 25px; color: #333;">Add Answer Tags to Document</h2>
+                <form id="answerForm">
+                    <div class="form-group">
+                        <label>Upload Word Document (.docx):</label>
+                        <input type="file" id="answerFile" accept=".docx" required>
+                        <small>Select a Word document to add answer tags</small>
+                    </div>
+                    <button type="submit" class="btn">Add Answer Tags</button>
+                    <div id="answerLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Processing document... Please wait</p>
+                    </div>
+                    <div id="answerResult"></div>
+                </form>
+            </div>
+
+            <!-- Add Subject Name Tab -->
+            <div id="subject" class="tab-content">
+                <h2 style="margin-bottom: 25px; color: #333;">Add Subject Names to Document</h2>
+                <form id="subjectForm">
+                    <div class="form-group">
+                        <label>Upload Word Document (.docx):</label>
+                        <input type="file" id="subjectFile" accept=".docx" required>
+                        <small>Select a Word document to add subject names</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject List (comma-separated):</label>
+                        <input type="text" id="subjectSubjectList" value="phy, chem, math, bio" required>
+                        <small>Example: phy, chem, math, bio</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Sequence List (ranges):</label>
+                        <input type="text" id="subjectSequenceList" value="1-25,26-50,51-75,76-100" required>
+                        <small>Example: 1-25,26-50,51-75,76-100</small>
+                    </div>
+                    <button type="submit" class="btn">Add Subject Names</button>
+                    <div id="subjectLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Processing document... Please wait</p>
+                    </div>
+                    <div id="subjectResult"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/QuestionGenerator';
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            const clickedButton = document.querySelector(`button[onclick="switchTab('${tabName}')"]`);
+            if (clickedButton) clickedButton.classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        const multiSetCheckbox = document.getElementById('mcqMultiSet');
+        const setCountGroup = document.getElementById('mcqSetCountGroup');
+        multiSetCheckbox.addEventListener('change', () => {
+            setCountGroup.classList.toggle('hidden', !multiSetCheckbox.checked);
+        });
+
+        const saqMultiSetCheckbox = document.getElementById('saqMultiSet');
+        const saqSetCountGroup = document.getElementById('saqSetCountGroup');
+        saqMultiSetCheckbox.addEventListener('change', () => {
+            saqSetCountGroup.classList.toggle('hidden', !saqMultiSetCheckbox.checked);
+        });
+
+        // MCQ Form Handler
+        document.getElementById('mcqForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loading = document.getElementById('mcqLoading');
+            const result = document.getElementById('mcqResult');
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            loading.classList.add('active');
+            result.innerHTML = '';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/generate-mcq`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        questionNumber: parseInt(document.getElementById('mcqQuestionNumber').value),
+                        subjectList: document.getElementById('mcqSubjectList').value,
+                        sequenceList: document.getElementById('mcqSequenceList').value,
+                        includeAnswerTags: document.getElementById('mcqIncludeAnswerTags').checked,
+                        multiSet: document.getElementById('mcqMultiSet').checked,
+                        setCount: parseInt(document.getElementById('mcqSetCount').value || '1')
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.files) {
+                        const fileLinks = data.files.map(f => 
+                            `<a href="${API_BASE}/download/${f}" class="download-link">📥 Download ${f}</a>`
+                        ).join('<br>');
+                        result.innerHTML = `
+                            <div class="alert alert-success">
+                                ✓ ${data.message}
+                                <br><br>
+                                ${fileLinks}
+                            </div>
+                        `;
+                    } else if (data.fileName) {
+                        result.innerHTML = `
+                            <div class="alert alert-success">
+                                ✓ ${data.message}
+                                <br>
+                                <a href="${API_BASE}/download/${data.fileName}" class="download-link">📥 Download ${data.fileName}</a>
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <div class="alert alert-success">✓ ${data.message}</div>
+                        `;
+                    }
+                } else {
+                    result.innerHTML = `<div class="alert alert-error">✗ ${data.message}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="alert alert-error">✗ Error: ${error.message}</div>`;
+            } finally {
+                loading.classList.remove('active');
+                btn.disabled = false;
+            }
+        });
+
+        // SAQ Form Handler
+        document.getElementById('saqForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loading = document.getElementById('saqLoading');
+            const result = document.getElementById('saqResult');
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            loading.classList.add('active');
+            result.innerHTML = '';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/generate-saq`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        questionNumber: parseInt(document.getElementById('saqQuestionNumber').value),
+                        questionMark: parseInt(document.getElementById('saqQuestionMark').value),
+                        subjectListBangla: document.getElementById('saqSubjectListBangla').value,
+                        subjectListEnglish: document.getElementById('saqSubjectListEnglish').value,
+                        sequenceList: document.getElementById('saqSequenceList').value,
+                        multiSet: document.getElementById('saqMultiSet').checked,
+                        setCount: parseInt(document.getElementById('saqSetCount').value || '1')
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const fileLinks = data.files.map(f => 
+                        `<a href="${API_BASE}/download/${f}" class="download-link">📥 Download ${f}</a>`
+                    ).join('<br>');
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            ✓ ${data.message}
+                            <br><br>
+                            ${fileLinks}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `<div class="alert alert-error">✗ ${data.message}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="alert alert-error">✗ Error: ${error.message}</div>`;
+            } finally {
+                loading.classList.remove('active');
+                btn.disabled = false;
+            }
+        });
+
+        // Answer Tag Form Handler
+        document.getElementById('answerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loading = document.getElementById('answerLoading');
+            const result = document.getElementById('answerResult');
+            const btn = e.target.querySelector('button[type="submit"]');
+            const fileInput = document.getElementById('answerFile');
+
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<div class="alert alert-error">✗ Please select a file</div>';
+                return;
+            }
+
+            loading.classList.add('active');
+            result.innerHTML = '';
+            btn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const response = await fetch(`${API_BASE}/add-answer-tag`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            ✓ ${data.message}
+                            <br>
+                            <a href="${API_BASE}/download/${data.fileName}" class="download-link">📥 Download ${data.fileName}</a>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `<div class="alert alert-error">✗ ${data.message}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="alert alert-error">✗ Error: ${error.message}</div>`;
+            } finally {
+                loading.classList.remove('active');
+                btn.disabled = false;
+            }
+        });
+
+        // Subject Name Form Handler
+        document.getElementById('subjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loading = document.getElementById('subjectLoading');
+            const result = document.getElementById('subjectResult');
+            const btn = e.target.querySelector('button[type="submit"]');
+            const fileInput = document.getElementById('subjectFile');
+
+            if (!fileInput.files[0]) {
+                result.innerHTML = '<div class="alert alert-error">✗ Please select a file</div>';
+                return;
+            }
+
+            loading.classList.add('active');
+            result.innerHTML = '';
+            btn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('subjectList', document.getElementById('subjectSubjectList').value);
+                formData.append('sequenceList', document.getElementById('subjectSequenceList').value);
+
+                const response = await fetch(`${API_BASE}/add-subject-name`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            ✓ ${data.message}
+                            <br>
+                            <a href="${API_BASE}/download/${data.fileName}" class="download-link">📥 Download ${data.fileName}</a>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `<div class="alert alert-error">✗ ${data.message}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="alert alert-error">✗ Error: ${error.message}</div>`;
+            } finally {
+                loading.classList.remove('active');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

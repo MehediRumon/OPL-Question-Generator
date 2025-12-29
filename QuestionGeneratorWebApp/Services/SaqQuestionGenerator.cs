@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Drawing;
 using System.Xml.Linq; // added for XML manipulation
+using System.IO.Packaging;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Drawing;
@@ -102,6 +103,9 @@ public static class SaqQuestionGenerator
                     outMain.Document.Save();
                 }
 
+                // Fix image paths after document creation to match modern Word format
+                FixImagePaths(outPath);
+
                 createdFiles.Add(outFileName);
             }
             else
@@ -155,6 +159,9 @@ public static class SaqQuestionGenerator
 
                         outMain.Document.Save();
                     }
+
+                    // Fix image paths after document creation to match modern Word format
+                    FixImagePaths(outPath);
 
                     createdFiles.Add(outFileName);
                 }
@@ -433,6 +440,90 @@ public static class SaqQuestionGenerator
             }
         }
         return cloned;
+    }
+
+    // Move images from /media/ to /word/media/ and update relationships
+    private static void FixImagePaths(string docPath)
+    {
+        try
+        {
+            using (var package = Package.Open(docPath, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var imageParts = package.GetParts().Where(p => 
+                    p.Uri.ToString().StartsWith("/media/") && 
+                    (p.ContentType.StartsWith("image/"))).ToList();
+
+                if (imageParts.Count == 0) return;
+
+                // Dictionary to map old URIs to new URIs
+                var uriMap = new Dictionary<string, string>();
+
+                // Copy images to /word/media/ and collect URI mappings
+                foreach (var oldPart in imageParts)
+                {
+                    string oldUri = oldPart.Uri.ToString();
+                    string fileName = System.IO.Path.GetFileName(oldUri);
+                    string newUri = $"/word/media/{fileName}";
+
+                    uriMap[oldUri] = newUri;
+
+                    // Create new part with correct URI
+                    var newPart = package.CreatePart(new Uri(newUri, UriKind.Relative), 
+                        oldPart.ContentType, CompressionOption.Normal);
+
+                    // Copy data
+                    using (var oldStream = oldPart.GetStream())
+                    using (var newStream = newPart.GetStream())
+                    {
+                        oldStream.CopyTo(newStream);
+                    }
+                }
+
+                // Update relationships in /word/_rels/document.xml.rels
+                try
+                {
+                    var docRelsPart = package.GetPart(new Uri("/word/_rels/document.xml.rels", UriKind.Relative));
+                    string relsContent;
+                    using (var stream = docRelsPart.GetStream())
+                    using (var reader = new StreamReader(stream))
+                    {
+                        relsContent = reader.ReadToEnd();
+                    }
+
+                    // Use XML-based replacement: change Target="/media/image.jpeg" to Target="media/image.jpeg"
+                    // This is safe because we're replacing the entire attribute value, not partial strings
+                    foreach (var mapping in uriMap)
+                    {
+                        string oldTarget = $"Target=\"{mapping.Key}\"";
+                        string newTarget = $"Target=\"media/{System.IO.Path.GetFileName(mapping.Value)}\"";
+                        relsContent = relsContent.Replace(oldTarget, newTarget);
+                    }
+
+                    // Write updated relationships
+                    using (var stream = docRelsPart.GetStream(FileMode.Create))
+                    using (var writer = new StreamWriter(stream))
+                    {
+                        writer.Write(relsContent);
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Relationship file doesn't exist - this is fine, document might not have relationships
+                }
+
+                // Delete old image parts from /media/
+                foreach (var oldPart in imageParts)
+                {
+                    package.DeletePart(oldPart.Uri);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // If fix fails, document still works, just not in modern format
+            // Log the error but don't fail document generation
+            System.Diagnostics.Debug.WriteLine($"Warning: Failed to fix image paths: {ex.Message}");
+        }
     }
 
     private static void EnsureTableBorders(W.Table table)

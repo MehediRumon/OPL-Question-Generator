@@ -65,17 +65,17 @@
                 <form id="mcqForm">
                     <div class="form-group">
                         <label>Number of Questions:</label>
-                        <input type="number" id="mcqQuestionNumber" value="100" min="1" required>
+                        <input type="number" id="mcqQuestionNumber" placeholder="100" min="1" required>
                         <small>Enter the total number of questions to generate</small>
                     </div>
                     <div class="form-group">
                         <label>Subject List (comma-separated):</label>
-                        <input type="text" id="mcqSubjectList" value="phy, chem, math, bio" required>
+                        <input type="text" id="mcqSubjectList" placeholder="phy, chem, math, bio" required>
                         <small>Example: phy, chem, math, bio</small>
                     </div>
                     <div class="form-group">
                         <label>Sequence List (ranges):</label>
-                        <input type="text" id="mcqSequenceList" value="1-25,26-50,51-75,76-100" required>
+                        <input type="text" id="mcqSequenceList" placeholder="1-25,26-50,51-75,76-100" required>
                         <small>Example: 1-25,26-50,51-75,76-100</small>
                     </div>
                     <div class="form-group checkbox-inline">
@@ -88,7 +88,7 @@
                     </div>
                     <div id="mcqSetCountGroup" class="form-group hidden">
                         <label>Set Count:</label>
-                        <input type="number" id="mcqSetCount" value="2" min="2">
+                        <input type="number" id="mcqSetCount" placeholder="2" min="2">
                         <small>Generate N sets (e.g., 2 → Set-1 and Set-2)</small>
                     </div>
                     <button type="submit" class="btn">Generate MCQ Document(s)</button>
@@ -107,26 +107,26 @@
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Number of Questions:</label>
-                            <input type="number" id="saqQuestionNumber" value="100" min="1" required>
+                            <input type="number" id="saqQuestionNumber" placeholder="100" min="1" required>
                         </div>
                         <div class="form-group">
                             <label>Question Mark:</label>
-                            <input type="number" id="saqQuestionMark" value="2" min="1" required>
+                            <input type="number" id="saqQuestionMark" placeholder="2" min="1" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Subject List (Bangla - comma-separated):</label>
-                        <input type="text" id="saqSubjectListBangla" value="পদার্থবিজ্ঞান, রসায়ন" required>
+                        <input type="text" id="saqSubjectListBangla" placeholder="পদার্থবিজ্ঞান, রসায়ন" required>
                         <small>Example: পদার্থবিজ্ঞান, রসায়ন</small>
                     </div>
                     <div class="form-group">
                         <label>Subject List (English - comma-separated):</label>
-                        <input type="text" id="saqSubjectListEnglish" value="Phy,Chem" required>
+                        <input type="text" id="saqSubjectListEnglish" placeholder="Phy,Chem" required>
                         <small>Example: Phy,Chem</small>
                     </div>
                     <div class="form-group">
                         <label>Sequence List (ranges):</label>
-                        <input type="text" id="saqSequenceList" value="1-50,51-100" required>
+                        <input type="text" id="saqSequenceList" placeholder="1-50,51-100" required>
                         <small>Example: 1-50,51-100</small>
                     </div>
                     <div class="form-group checkbox-inline">
@@ -135,7 +135,7 @@
                     </div>
                     <div id="saqSetCountGroup" class="form-group hidden">
                         <label>Set Count:</label>
-                        <input type="number" id="saqSetCount" value="2" min="2">
+                        <input type="number" id="saqSetCount" placeholder="2" min="2">
                         <small>Generate N sets (e.g., 2 → Set-1 and Set-2)</small>
                     </div>
                     <button type="submit" class="btn">Generate SAQ Documents</button>
@@ -176,12 +176,12 @@
                     </div>
                     <div class="form-group">
                         <label>Subject List (comma-separated):</label>
-                        <input type="text" id="subjectSubjectList" value="phy, chem, math, bio" required>
+                        <input type="text" id="subjectSubjectList" placeholder="phy, chem, math, bio" required>
                         <small>Example: phy, chem, math, bio</small>
                     </div>
                     <div class="form-group">
                         <label>Sequence List (ranges):</label>
-                        <input type="text" id="subjectSequenceList" value="1-25,26-50,51-75,76-100" required>
+                        <input type="text" id="subjectSequenceList" placeholder="1-25,26-50,51-75,76-100" required>
                         <small>Example: 1-25,26-50,51-75,76-100</small>
                     </div>
                     <button type="submit" class="btn">Add Subject Names</button>
@@ -235,12 +235,12 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        questionNumber: parseInt(document.getElementById('mcqQuestionNumber').value),
-                        subjectList: document.getElementById('mcqSubjectList').value,
-                        sequenceList: document.getElementById('mcqSequenceList').value,
+                        questionNumber: parseInt(document.getElementById('mcqQuestionNumber').value || '100'),
+                        subjectList: document.getElementById('mcqSubjectList').value || 'phy, chem, math, bio',
+                        sequenceList: document.getElementById('mcqSequenceList').value || '1-25,26-50,51-75,76-100',
                         includeAnswerTags: document.getElementById('mcqIncludeAnswerTags').checked,
                         multiSet: document.getElementById('mcqMultiSet').checked,
-                        setCount: parseInt(document.getElementById('mcqSetCount').value || '1')
+                        setCount: parseInt(document.getElementById('mcqSetCount').value || '2')
                     })
                 });
 
@@ -298,13 +298,13 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        questionNumber: parseInt(document.getElementById('saqQuestionNumber').value),
-                        questionMark: parseInt(document.getElementById('saqQuestionMark').value),
-                        subjectListBangla: document.getElementById('saqSubjectListBangla').value,
-                        subjectListEnglish: document.getElementById('saqSubjectListEnglish').value,
-                        sequenceList: document.getElementById('saqSequenceList').value,
+                        questionNumber: parseInt(document.getElementById('saqQuestionNumber').value || '100'),
+                        questionMark: parseInt(document.getElementById('saqQuestionMark').value || '2'),
+                        subjectListBangla: document.getElementById('saqSubjectListBangla').value || 'পদার্থবিজ্ঞান, রসায়ন',
+                        subjectListEnglish: document.getElementById('saqSubjectListEnglish').value || 'Phy,Chem',
+                        sequenceList: document.getElementById('saqSequenceList').value || '1-50,51-100',
                         multiSet: document.getElementById('saqMultiSet').checked,
-                        setCount: parseInt(document.getElementById('saqSetCount').value || '1')
+                        setCount: parseInt(document.getElementById('saqSetCount').value || '2')
                     })
                 });
 
@@ -399,8 +399,8 @@
             try {
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
-                formData.append('subjectList', document.getElementById('subjectSubjectList').value);
-                formData.append('sequenceList', document.getElementById('subjectSequenceList').value);
+                formData.append('subjectList', document.getElementById('subjectSubjectList').value || 'phy, chem, math, bio');
+                formData.append('sequenceList', document.getElementById('subjectSequenceList').value || '1-25,26-50,51-75,76-100');
 
                 const response = await fetch(`${API_BASE}/add-subject-name`, {
                     method: 'POST',

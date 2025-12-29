@@ -176,7 +176,7 @@ public static class McqQuestionGenerator
                     foreach (var mapping in uriMap)
                     {
                         string oldTarget = $"Target=\"{mapping.Key}\"";
-                        string newTarget = $"Target=\"{Path.GetFileName(mapping.Value)}\"";
+                        string newTarget = $"Target=\"media/{Path.GetFileName(mapping.Value)}\"";
                         relsContent = relsContent.Replace(oldTarget, newTarget);
                     }
 

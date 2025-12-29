@@ -295,7 +295,7 @@ namespace QuestionGeneratorWebApp.Controllers
     {
         public int QuestionNumber { get; set; } = 100;
         public int QuestionMark { get; set; } = 2;
-        public string SubjectListBangla { get; set; } = "পদার্থবিজ্ঞান, রসায়ন";
+        public string SubjectListBangla { get; set; } = "c`v_©weÁvb, imvqb";
         public string SubjectListEnglish { get; set; } = "Phy,Chem";
         public string SequenceList { get; set; } = "1-50,51-100";
         public bool MultiSet { get; set; } = false;

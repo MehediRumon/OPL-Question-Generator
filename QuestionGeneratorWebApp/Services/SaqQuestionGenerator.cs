@@ -331,6 +331,58 @@ public static class SaqQuestionGenerator
         }
     }
 
+    // Convert Unicode Bengali to SutonnyMJ ASCII encoding
+    private static string ConvertUnicodeToSutonnyMJ(string unicodeText)
+    {
+        if (string.IsNullOrEmpty(unicodeText)) return unicodeText;
+
+        // Unicode to SutonnyMJ character mapping (most common characters)
+        var mapping = new Dictionary<string, string>
+        {
+            // Vowels
+            {"অ", "A"}, {"আ", "Av"}, {"ই", "B"}, {"ঈ", "C"}, {"উ", "D"}, {"ঊ", "E"},
+            {"ঋ", "F"}, {"এ", "G"}, {"ঐ", "H"}, {"ও", "I"}, {"ঔ", "J"},
+            
+            // Consonants
+            {"ক", "K"}, {"খ", "L"}, {"গ", "M"}, {"ঘ", "N"}, {"ঙ", "O"},
+            {"চ", "P"}, {"ছ", "Q"}, {"জ", "R"}, {"ঝ", "S"}, {"ঞ", "T"},
+            {"ট", "U"}, {"ঠ", "V"}, {"ড", "W"}, {"ঢ", "X"}, {"ণ", "Y"},
+            {"ত", "Z"}, {"থ", "_"}, {"দ", "`"}, {"ধ", "a"}, {"ন", "b"},
+            {"প", "c"}, {"ফ", "d"}, {"ব", "e"}, {"ভ", "f"}, {"ম", "g"},
+            {"য", "h"}, {"র", "i"}, {"ল", "j"}, {"শ", "k"}, {"ষ", "l"},
+            {"স", "m"}, {"হ", "n"}, {"ড়", "o"}, {"ঢ়", "p"}, {"য়", "q"},
+            {"ৎ", "r"}, {"ং", "s"}, {"ঃ", "t"}, {"ঁ", "u"},
+            
+            // Kar (vowel signs)
+            {"া", "v"}, {"ি", "w"}, {"ী", "x"}, {"ু", "y"}, {"ূ", "z"},
+            {"ৃ", "…"}, {"ে", "†"}, {"ৈ", "‡"}, {"ো", "†v"}, {"ৌ", "‡Š"},
+            {"্", "&"}, {"ৗ", "Š"},
+            
+            // Numbers
+            {"০", "0"}, {"১", "1"}, {"২", "2"}, {"৩", "3"}, {"৪", "4"},
+            {"৫", "5"}, {"৬", "6"}, {"৭", "7"}, {"৮", "8"}, {"৯", "9"},
+            
+            // Common conjuncts
+            {"ক্ষ", "¶"}, {"জ্ঞ", "Á"}, {"ঞ্জ", "Ä"}, {"ত্র", "Î"}, {"ন্ত", "š"},
+            {"ন্দ", "›`"}, {"ন্ধ", "Ú"}, {"ম্প", "¤ú"}, {"ম্ব", "¤^"}, {"ম্ম", "¤§"},
+            {"ষ্ঠ", "ô"}, {"স্ত", "¯Í"}, {"স্থ", "¯'"}, {"হ্ম", "ý"},
+            
+            // Ref/Nukta
+            {"র্", "©"}, {"্র", "Ö"}
+        };
+
+        string result = unicodeText;
+        
+        // First handle longer sequences (conjuncts) before individual characters
+        var sortedKeys = mapping.Keys.OrderByDescending(k => k.Length).ToList();
+        foreach (var key in sortedKeys)
+        {
+            result = result.Replace(key, mapping[key]);
+        }
+
+        return result;
+    }
+
     private static void ReplaceBanglaSubjectCell(W.Table table, int rowIndex, int colIndex, string text)
     {
         var rows = table.Elements<W.TableRow>().ToList();
@@ -338,6 +390,9 @@ public static class SaqQuestionGenerator
         var cells = rows[rowIndex].Elements<W.TableCell>().ToList();
         if (colIndex < 0 || colIndex >= cells.Count) return;
         var cell = cells[colIndex];
+
+        // Convert Unicode Bengali to SutonnyMJ ASCII encoding
+        string sutonnyMJText = ConvertUnicodeToSutonnyMJ(text);
 
         cell.RemoveAllChildren<W.Paragraph>();
         var para = new W.Paragraph();
@@ -347,7 +402,7 @@ public static class SaqQuestionGenerator
         rp.AppendChild(new W.RunFonts { Ascii = "SutonnyMJ", HighAnsi = "SutonnyMJ", EastAsia = "SutonnyMJ", ComplexScript = "SutonnyMJ" });
         rp.AppendChild(new W.RightToLeftText());
         run.AppendChild(rp);
-        run.AppendChild(new W.Text(text ?? string.Empty));
+        run.AppendChild(new W.Text(sutonnyMJText ?? string.Empty));
         para.AppendChild(run);
         cell.AppendChild(para);
     }

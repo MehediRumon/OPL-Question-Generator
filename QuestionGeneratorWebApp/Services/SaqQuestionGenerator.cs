@@ -336,9 +336,45 @@ public static class SaqQuestionGenerator
     {
         if (string.IsNullOrEmpty(unicodeText)) return unicodeText;
 
-        // Unicode to SutonnyMJ character mapping (most common characters)
+        // Step 1: Handle pre-base vowel signs (ি, ৈ, ে) that need reordering
+        // In Unicode: consonant + pre-base kar
+        // In SutonnyMJ: kar + consonant
+        string result = unicodeText;
+        
+        // Reorder: consonant + 'ি' (Kar-I) → 'ি' + consonant
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ি", "ি$1");
+        
+        // Reorder: consonant + 'ে' (Kar-E) → 'ে' + consonant  
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ে", "ে$1");
+            
+        // Reorder: consonant + 'ৈ' (Kar-OI) → 'ৈ' + consonant
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ৈ", "ৈ$1");
+
+        // Step 2: Apply character mapping
         var mapping = new Dictionary<string, string>
         {
+            // Common conjuncts - MUST be processed first (longer sequences)
+            {"র্থ", "_©"},  // R+Tha
+            {"জ্ঞ", "Á"},   // Gya
+            {"ক্ষ", "¶"},   // Ksha
+            {"ঞ্জ", "Ä"},   // NYa+Ja
+            {"ত্র", "Î"},   // Tra
+            {"ন্ত", "š"},   // Nta
+            {"ন্দ", "›`"},  // Nda
+            {"ন্ধ", "Ú"},   // Ndha
+            {"ম্প", "¤ú"},  // Mpa
+            {"ম্ব", "¤^"},  // Mba
+            {"ম্ম", "¤§"},  // Mma
+            {"ষ্ঠ", "ô"},   // Shtha
+            {"স্ত", "¯Í"},  // Sta
+            {"স্থ", "¯'"},  // Stha
+            {"হ্ম", "ý"},   // Hma
+            {"্র", "Ö"},   // Ra-fala (after any consonant)
+            {"র্", "©"},   // Ra-ref (before any consonant)
+            
             // Vowels
             {"অ", "A"}, {"আ", "Av"}, {"ই", "B"}, {"ঈ", "C"}, {"উ", "D"}, {"ঊ", "E"},
             {"ঋ", "F"}, {"এ", "G"}, {"ঐ", "H"}, {"ও", "I"}, {"ঔ", "J"},
@@ -360,20 +396,10 @@ public static class SaqQuestionGenerator
             
             // Numbers
             {"০", "0"}, {"১", "1"}, {"২", "2"}, {"৩", "3"}, {"৪", "4"},
-            {"৫", "5"}, {"৬", "6"}, {"৭", "7"}, {"৮", "8"}, {"৯", "9"},
-            
-            // Common conjuncts
-            {"ক্ষ", "¶"}, {"জ্ঞ", "Á"}, {"ঞ্জ", "Ä"}, {"ত্র", "Î"}, {"ন্ত", "š"},
-            {"ন্দ", "›`"}, {"ন্ধ", "Ú"}, {"ম্প", "¤ú"}, {"ম্ব", "¤^"}, {"ম্ম", "¤§"},
-            {"ষ্ঠ", "ô"}, {"স্ত", "¯Í"}, {"স্থ", "¯'"}, {"হ্ম", "ý"},
-            
-            // Ref/Nukta
-            {"র্", "©"}, {"্র", "Ö"}
+            {"৫", "5"}, {"৬", "6"}, {"৭", "7"}, {"৮", "8"}, {"৯", "9"}
         };
-
-        string result = unicodeText;
         
-        // First handle longer sequences (conjuncts) before individual characters
+        // Process in order: longer sequences first (conjuncts), then individual characters
         var sortedKeys = mapping.Keys.OrderByDescending(k => k.Length).ToList();
         foreach (var key in sortedKeys)
         {

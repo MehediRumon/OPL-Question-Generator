@@ -215,12 +215,23 @@ namespace QuestionGeneratorWebApp.Controllers
                         {
                             var cell = cells[col];
                             
-                            // Preserve existing content and append (Ans)
-                            var existingText = string.Join("", cell.Descendants<Text>().Select(t => t.Text)).Trim();
-                            cell.RemoveAllChildren<Paragraph>();
-                            var answerText = string.IsNullOrWhiteSpace(existingText) ? "(Ans)" : $"{existingText} (Ans)";
-                            var p = new Paragraph(new Run(new Text(answerText)));
-                            cell.AppendChild(p);
+                            // Preserve all existing content (images, formulas, formatting) and append (Ans)
+                            var paragraphs = cell.Elements<Paragraph>().ToList();
+                            
+                            if (paragraphs.Count == 0)
+                            {
+                                // Empty cell - add new paragraph with (Ans)
+                                var p = new Paragraph(new Run(new Text("(Ans)")));
+                                cell.AppendChild(p);
+                            }
+                            else
+                            {
+                                // Append " (Ans)" to the last paragraph without destroying existing content
+                                var lastParagraph = paragraphs[paragraphs.Count - 1];
+                                
+                                // Add a space and (Ans) as a new run to the last paragraph
+                                lastParagraph.AppendChild(new Run(new Text(" (Ans)")));
+                            }
                         }
                     }
                     catch { continue; }

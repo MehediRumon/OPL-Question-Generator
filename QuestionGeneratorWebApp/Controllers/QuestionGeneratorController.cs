@@ -202,11 +202,9 @@ namespace QuestionGeneratorWebApp.Controllers
                         for (int col = 0; col < Math.Min(2, cells.Count); col++)
                         {
                             var cell = cells[col];
-                            // Skip if cell is blank
-                            string originalClean = string.Join("", cell.Descendants<Text>().Select(t => t.Text)).Trim();
-                            if (string.IsNullOrWhiteSpace(originalClean)) continue;
-
-                            // Replace text with "Answer"
+                            
+                            // Add "Answer" text to mark the correct answer
+                            // Remove existing content and replace with answer tag
                             cell.RemoveAllChildren<Paragraph>();
                             var p = new Paragraph(new Run(new Text("Answer")));
                             cell.AppendChild(p);

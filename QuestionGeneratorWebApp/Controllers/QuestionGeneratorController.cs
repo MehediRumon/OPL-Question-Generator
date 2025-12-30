@@ -227,7 +227,7 @@ namespace QuestionGeneratorWebApp.Controllers
                             else
                             {
                                 // Append " (Ans)" to the last paragraph without destroying existing content
-                                var lastParagraph = paragraphs[paragraphs.Count - 1];
+                                var lastParagraph = paragraphs.Last();
                                 
                                 // Add a space and (Ans) as a new run to the last paragraph
                                 lastParagraph.AppendChild(new Run(new Text(" (Ans)")));

@@ -127,9 +127,9 @@
                             <input type="number" id="saqQuestionMark" placeholder="2" min="1" required>
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="saqBanglaSubjectGroup">
                         <label>Subject List (Bangla - comma-separated):</label>
-                        <input type="text" id="saqSubjectListBangla" placeholder="পদার্থবিজ্ঞান, রসায়ন" required>
+                        <input type="text" id="saqSubjectListBangla" placeholder="পদার্থবিজ্ঞান, রসায়ন">
                         <small>Example: পদার্থবিজ্ঞান, রসায়ন</small>
                     </div>
                     <div class="form-group" id="saqEnglishSubjectGroup">
@@ -232,16 +232,24 @@
             saqSetCountGroup.classList.toggle('hidden', !saqMultiSetCheckbox.checked);
         });
 
-        // Toggle English subject field based on question type
+        // Toggle subject fields based on question type
         function toggleSaqType() {
             const saqType = document.querySelector('input[name="saqType"]:checked').value;
+            const banglaSubjectGroup = document.getElementById('saqBanglaSubjectGroup');
+            const banglaSubjectInput = document.getElementById('saqSubjectListBangla');
             const englishSubjectGroup = document.getElementById('saqEnglishSubjectGroup');
             const englishSubjectInput = document.getElementById('saqSubjectListEnglish');
             
             if (saqType === 'OW') {
-                englishSubjectGroup.classList.add('hidden');
-                englishSubjectInput.removeAttribute('required');
+                // Online Written: Show English only, hide Bangla
+                banglaSubjectGroup.classList.add('hidden');
+                banglaSubjectInput.removeAttribute('required');
+                englishSubjectGroup.classList.remove('hidden');
+                englishSubjectInput.setAttribute('required', 'required');
             } else {
+                // SAQ: Show both Bangla and English
+                banglaSubjectGroup.classList.remove('hidden');
+                banglaSubjectInput.setAttribute('required', 'required');
                 englishSubjectGroup.classList.remove('hidden');
                 englishSubjectInput.setAttribute('required', 'required');
             }
@@ -332,8 +340,8 @@
                     body: JSON.stringify({
                         questionNumber: parseInt(document.getElementById('saqQuestionNumber').value || '100'),
                         questionMark: parseInt(document.getElementById('saqQuestionMark').value || '2'),
-                        subjectListBangla: document.getElementById('saqSubjectListBangla').value || 'পদার্থবিজ্ঞান, রসায়ন',
-                        subjectListEnglish: saqType === 'OW' ? '' : (document.getElementById('saqSubjectListEnglish').value || 'Phy,Chem'),
+                        subjectListBangla: saqType === 'OW' ? '' : (document.getElementById('saqSubjectListBangla').value || 'পদার্থবিজ্ঞান, রসায়ন'),
+                        subjectListEnglish: document.getElementById('saqSubjectListEnglish').value || 'Phy,Chem',
                         sequenceList: document.getElementById('saqSequenceList').value || '1-50,51-100',
                         multiSet: document.getElementById('saqMultiSet').checked,
                         setCount: parseInt(document.getElementById('saqSetCount').value || '2'),

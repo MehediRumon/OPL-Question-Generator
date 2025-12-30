@@ -43,6 +43,9 @@ public static class SaqQuestionGenerator
         if (questionType != "OW" && bnSubjects.Count != enSubjects.Count)
             throw new ArgumentException("subjectListBangla এবং subjectListEnglish এ উপাদানের সংখ্যা সমান থাকতে হবে।");
 
+        // Determine subject count based on question type
+        int subjectCount = questionType == "OW" ? enSubjects.Count : bnSubjects.Count;
+
         var ranges = ParseRanges(sequenceList);
         var createdFiles = new List<string>();
         string batchId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -70,9 +73,9 @@ public static class SaqQuestionGenerator
 
                     StripHeaderFooterDrawings(outMain);
 
-                    for (int s = 0; s < bnSubjects.Count; s++)
+                    for (int s = 0; s < subjectCount; s++)
                     {
-                        string subjBn = bnSubjects[s];
+                        string subjBn = questionType == "OW" ? "" : bnSubjects[s];
                         string subjEn = enSubjects[s];
 
                         foreach (var (start, end) in ranges)
@@ -126,9 +129,9 @@ public static class SaqQuestionGenerator
 
                         StripHeaderFooterDrawings(outMain);
 
-                        for (int s = 0; s < bnSubjects.Count; s++)
+                        for (int s = 0; s < subjectCount; s++)
                         {
-                            string subjBn = bnSubjects[s];
+                            string subjBn = questionType == "OW" ? "" : bnSubjects[s];
                             string subjEn = enSubjects[s];
 
                             foreach (var (start, end) in ranges)

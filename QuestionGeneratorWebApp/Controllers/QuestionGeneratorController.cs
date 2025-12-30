@@ -163,6 +163,18 @@ namespace QuestionGeneratorWebApp.Controllers
                     return NotFound(new { success = false, message = "File not found." });
 
                 var bytes = System.IO.File.ReadAllBytes(filePath);
+                
+                // Delete the file immediately after reading it for download
+                try
+                {
+                    System.IO.File.Delete(filePath);
+                    _logger.LogInformation($"File deleted after download: {fileName}");
+                }
+                catch (Exception deleteEx)
+                {
+                    _logger.LogWarning(deleteEx, $"Failed to delete file after download: {fileName}");
+                }
+                
                 return File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
             }
             catch (Exception ex)

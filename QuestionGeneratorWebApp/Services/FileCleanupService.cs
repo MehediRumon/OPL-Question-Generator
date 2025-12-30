@@ -12,8 +12,8 @@ namespace QuestionGeneratorWebApp.Services
     {
         private readonly ILogger<FileCleanupService> _logger;
         private readonly IWebHostEnvironment _env;
-        private readonly TimeSpan _cleanupInterval = TimeSpan.FromHours(1); // Run cleanup every hour
-        private readonly TimeSpan _fileMaxAge = TimeSpan.FromHours(24); // Delete files older than 24 hours
+        private readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(1); // Run cleanup every minute
+        private readonly TimeSpan _fileMaxAge = TimeSpan.FromMinutes(5); // Delete files older than 5 minutes
 
         public FileCleanupService(ILogger<FileCleanupService> logger, IWebHostEnvironment env)
         {

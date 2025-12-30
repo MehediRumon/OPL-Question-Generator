@@ -67,7 +67,8 @@ namespace QuestionGeneratorWebApp.Controllers
                     request.SubjectListEnglish,
                     request.SequenceList,
                     request.MultiSet,
-                    request.SetCount
+                    request.SetCount,
+                    request.QuestionType
                 );
 
                 if (files.Count > 0)

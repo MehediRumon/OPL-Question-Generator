@@ -23,7 +23,8 @@ public static class SaqQuestionGenerator
         string subjectListEnglish,
         string sequenceList,
         bool multiSet = false,
-        int setCount = 1
+        int setCount = 1,
+        string questionType = "SAQ"
     )
     {
         string saqSamplePath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Question", "SaqSample.docx");
@@ -37,7 +38,9 @@ public static class SaqQuestionGenerator
         var enSubjects = subjectListEnglish.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim()).ToList();
 
-        if (bnSubjects.Count != enSubjects.Count)
+        // For Online Written (OW) mode, only English subjects are required
+        // For SAQ mode, both Bangla and English subjects must have same count
+        if (questionType != "OW" && bnSubjects.Count != enSubjects.Count)
             throw new ArgumentException("subjectListBangla এবং subjectListEnglish এ উপাদানের সংখ্যা সমান থাকতে হবে।");
 
         var ranges = ParseRanges(sequenceList);

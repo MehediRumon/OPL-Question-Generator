@@ -53,7 +53,7 @@
 
         <div class="tabs">
             <button class="tab active" onclick="switchTab('mcq')">Generate MCQ</button>
-            <button class="tab" onclick="switchTab('saq')">Generate SAQ</button>
+            <button class="tab" onclick="switchTab('saq')">Generate SAQ and OW</button>
             <button class="tab" onclick="switchTab('answer')">Add Answer Tag</button>
             <button class="tab" onclick="switchTab('subject')">Add Subject Name</button>
         </div>
@@ -102,8 +102,21 @@
 
             <!-- SAQ Generation Tab -->
             <div id="saq" class="tab-content">
-                <h2 style="margin-bottom: 25px; color: #333;">Generate SAQ Questions</h2>
+                <h2 style="margin-bottom: 25px; color: #333;">Generate SAQ and OW Questions</h2>
                 <form id="saqForm">
+                    <div class="form-group">
+                        <label>Question Type:</label>
+                        <div style="display: flex; gap: 20px; margin-top: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="saqType" id="saqTypeSAQ" value="SAQ" checked onchange="toggleSaqType()">
+                                <span>SAQ</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="saqType" id="saqTypeOW" value="OW" onchange="toggleSaqType()">
+                                <span>Online Written</span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="grid-2">
                         <div class="form-group">
                             <label>Number of Questions:</label>
@@ -119,9 +132,9 @@
                         <input type="text" id="saqSubjectListBangla" placeholder="পদার্থবিজ্ঞান, রসায়ন" required>
                         <small>Example: পদার্থবিজ্ঞান, রসায়ন</small>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="saqEnglishSubjectGroup">
                         <label>Subject List (English - comma-separated):</label>
-                        <input type="text" id="saqSubjectListEnglish" placeholder="Phy,Chem" required>
+                        <input type="text" id="saqSubjectListEnglish" placeholder="Phy,Chem">
                         <small>Example: Phy,Chem</small>
                     </div>
                     <div class="form-group">
@@ -138,7 +151,7 @@
                         <input type="number" id="saqSetCount" placeholder="2" min="2">
                         <small>Generate N sets (e.g., 2 → Set-1 and Set-2)</small>
                     </div>
-                    <button type="submit" class="btn">Generate SAQ Documents</button>
+                    <button type="submit" class="btn">Generate Documents</button>
                     <div id="saqLoading" class="loading">
                         <div class="spinner"></div>
                         <p>Generating documents... Please wait</p>
@@ -219,6 +232,24 @@
             saqSetCountGroup.classList.toggle('hidden', !saqMultiSetCheckbox.checked);
         });
 
+        // Toggle English subject field based on question type
+        function toggleSaqType() {
+            const saqType = document.querySelector('input[name="saqType"]:checked').value;
+            const englishSubjectGroup = document.getElementById('saqEnglishSubjectGroup');
+            const englishSubjectInput = document.getElementById('saqSubjectListEnglish');
+            
+            if (saqType === 'OW') {
+                englishSubjectGroup.classList.add('hidden');
+                englishSubjectInput.removeAttribute('required');
+            } else {
+                englishSubjectGroup.classList.remove('hidden');
+                englishSubjectInput.setAttribute('required', 'required');
+            }
+        }
+
+        // Initialize on page load
+        toggleSaqType();
+
         // MCQ Form Handler
         document.getElementById('mcqForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -294,6 +325,7 @@
             btn.disabled = true;
 
             try {
+                const saqType = document.querySelector('input[name="saqType"]:checked').value;
                 const response = await fetch(`${API_BASE}/generate-saq`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -301,10 +333,11 @@
                         questionNumber: parseInt(document.getElementById('saqQuestionNumber').value || '100'),
                         questionMark: parseInt(document.getElementById('saqQuestionMark').value || '2'),
                         subjectListBangla: document.getElementById('saqSubjectListBangla').value || 'পদার্থবিজ্ঞান, রসায়ন',
-                        subjectListEnglish: document.getElementById('saqSubjectListEnglish').value || 'Phy,Chem',
+                        subjectListEnglish: saqType === 'OW' ? '' : (document.getElementById('saqSubjectListEnglish').value || 'Phy,Chem'),
                         sequenceList: document.getElementById('saqSequenceList').value || '1-50,51-100',
                         multiSet: document.getElementById('saqMultiSet').checked,
-                        setCount: parseInt(document.getElementById('saqSetCount').value || '2')
+                        setCount: parseInt(document.getElementById('saqSetCount').value || '2'),
+                        questionType: saqType
                     })
                 });
 

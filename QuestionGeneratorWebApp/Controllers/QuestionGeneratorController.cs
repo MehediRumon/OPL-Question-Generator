@@ -322,5 +322,6 @@ namespace QuestionGeneratorWebApp.Controllers
         public string SequenceList { get; set; } = "1-50,51-100";
         public bool MultiSet { get; set; } = false;
         public int SetCount { get; set; } = 1;
+        public string QuestionType { get; set; } = "SAQ"; // "SAQ" or "OW"
     }
 }

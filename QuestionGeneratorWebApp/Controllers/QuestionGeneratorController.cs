@@ -203,10 +203,11 @@ namespace QuestionGeneratorWebApp.Controllers
                         {
                             var cell = cells[col];
                             
-                            // Add "Answer" text to mark the correct answer
-                            // Remove existing content and replace with answer tag
+                            // Preserve existing content and append (Ans)
+                            var existingText = string.Join("", cell.Descendants<Text>().Select(t => t.Text)).Trim();
                             cell.RemoveAllChildren<Paragraph>();
-                            var p = new Paragraph(new Run(new Text("Answer")));
+                            var answerText = string.IsNullOrWhiteSpace(existingText) ? "(Ans)" : $"{existingText} (Ans)";
+                            var p = new Paragraph(new Run(new Text(answerText)));
                             cell.AppendChild(p);
                         }
                     }

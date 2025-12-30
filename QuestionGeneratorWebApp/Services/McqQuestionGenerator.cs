@@ -571,8 +571,11 @@ public static class McqQuestionGenerator
         for (int col = 0; col < Math.Min(2, cells.Count); col++)
         {
             var cell = cells[col];
+            // Preserve existing content and append (Ans)
+            var existingText = string.Join("", cell.Descendants<W.Text>().Select(t => t.Text)).Trim();
             cell.RemoveAllChildren<W.Paragraph>();
-            var p = new W.Paragraph(new W.Run(new W.Text("Answer")));
+            var answerText = string.IsNullOrWhiteSpace(existingText) ? "(Ans)" : $"{existingText} (Ans)";
+            var p = new W.Paragraph(new W.Run(new W.Text(answerText)));
             cell.AppendChild(p);
         }
     }

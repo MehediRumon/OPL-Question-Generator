@@ -5,6 +5,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add background service for file cleanup
+builder.Services.AddHostedService<QuestionGeneratorWebApp.Services.FileCleanupService>();
+
 // Add CORS policy
 builder.Services.AddCors(options =>
 {

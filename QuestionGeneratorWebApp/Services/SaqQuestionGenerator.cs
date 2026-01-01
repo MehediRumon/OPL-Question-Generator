@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Drawing;
 using System.Xml.Linq; // added for XML manipulation
+using System.IO.Packaging;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Drawing;
@@ -22,7 +23,8 @@ public static class SaqQuestionGenerator
         string subjectListEnglish,
         string sequenceList,
         bool multiSet = false,
-        int setCount = 1
+        int setCount = 1,
+        string questionType = "SAQ"
     )
     {
         string saqSamplePath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Question", "SaqSample.docx");
@@ -36,13 +38,27 @@ public static class SaqQuestionGenerator
         var enSubjects = subjectListEnglish.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim()).ToList();
 
-        if (bnSubjects.Count != enSubjects.Count)
+        // For Online Written (OW) mode, only English subjects are required
+        // For SAQ mode, both Bangla and English subjects must have same count
+        if (questionType != "OW" && bnSubjects.Count != enSubjects.Count)
             throw new ArgumentException("subjectListBangla এবং subjectListEnglish এ উপাদানের সংখ্যা সমান থাকতে হবে।");
 
+        // Determine subject count based on question type
+        int subjectCount = questionType == "OW" ? enSubjects.Count : bnSubjects.Count;
+
         var ranges = ParseRanges(sequenceList);
+        
+        // Validate that sequence ranges can fulfill the requested question count
+        int totalQuestionsInRanges = ranges.Sum(r => Math.Abs(r.end - r.start) + 1);
+        if (questionGenerateNumber > 0 && questionGenerateNumber > totalQuestionsInRanges)
+        {
+            throw new ArgumentException($"Number of Questions ({questionGenerateNumber}) exceeds total available in Sequence List ({totalQuestionsInRanges}). Please adjust either field.");
+        }
+        
         var createdFiles = new List<string>();
         string batchId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         int sets = (multiSet && setCount > 1) ? setCount : 1;
+        string prefix = questionType == "OW" ? "OW" : "SAQ";
 
         using (var sampleDoc = WordprocessingDocument.Open(saqSamplePath, false))
         {
@@ -55,7 +71,7 @@ public static class SaqQuestionGenerator
 
             if (sets == 1)
             {
-                string outFileName = $"SAQ_{batchId}.docx";
+                string outFileName = $"{prefix}_{batchId}.docx";
                 string outPath = System.IO.Path.Combine(outputDirectoryPath, outFileName);
 
                 using (var outDoc = WordprocessingDocument.Create(outPath, WordprocessingDocumentType.Document))
@@ -66,9 +82,9 @@ public static class SaqQuestionGenerator
 
                     StripHeaderFooterDrawings(outMain);
 
-                    for (int s = 0; s < bnSubjects.Count; s++)
+                    for (int s = 0; s < subjectCount; s++)
                     {
-                        string subjBn = bnSubjects[s];
+                        string subjBn = questionType == "OW" ? "" : bnSubjects[s];
                         string subjEn = enSubjects[s];
 
                         foreach (var (start, end) in ranges)
@@ -102,13 +118,16 @@ public static class SaqQuestionGenerator
                     outMain.Document.Save();
                 }
 
+                // Fix image paths after document creation to match modern Word format
+                FixImagePaths(outPath);
+
                 createdFiles.Add(outFileName);
             }
             else
             {
                 for (int setIndex = 1; setIndex <= sets; setIndex++)
                 {
-                    string outFileName = $"SAQ_Set{setIndex}_{batchId}.docx";
+                    string outFileName = $"{prefix}_Set{setIndex}_{batchId}.docx";
                     string outPath = System.IO.Path.Combine(outputDirectoryPath, outFileName);
 
                     using (var outDoc = WordprocessingDocument.Create(outPath, WordprocessingDocumentType.Document))
@@ -119,9 +138,9 @@ public static class SaqQuestionGenerator
 
                         StripHeaderFooterDrawings(outMain);
 
-                        for (int s = 0; s < bnSubjects.Count; s++)
+                        for (int s = 0; s < subjectCount; s++)
                         {
-                            string subjBn = bnSubjects[s];
+                            string subjBn = questionType == "OW" ? "" : bnSubjects[s];
                             string subjEn = enSubjects[s];
 
                             foreach (var (start, end) in ranges)
@@ -155,6 +174,9 @@ public static class SaqQuestionGenerator
 
                         outMain.Document.Save();
                     }
+
+                    // Fix image paths after document creation to match modern Word format
+                    FixImagePaths(outPath);
 
                     createdFiles.Add(outFileName);
                 }
@@ -324,6 +346,84 @@ public static class SaqQuestionGenerator
         }
     }
 
+    // Convert Unicode Bengali to SutonnyMJ ASCII encoding
+    private static string ConvertUnicodeToSutonnyMJ(string unicodeText)
+    {
+        if (string.IsNullOrEmpty(unicodeText)) return unicodeText;
+
+        // Step 1: Handle pre-base vowel signs (ি, ৈ, ে) that need reordering
+        // In Unicode: consonant + pre-base kar
+        // In SutonnyMJ: kar + consonant
+        string result = unicodeText;
+        
+        // Reorder: consonant + 'ি' (Kar-I) → 'ি' + consonant
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ি", "ি$1");
+        
+        // Reorder: consonant + 'ে' (Kar-E) → 'ে' + consonant  
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ে", "ে$1");
+            
+        // Reorder: consonant + 'ৈ' (Kar-OI) → 'ৈ' + consonant
+        result = System.Text.RegularExpressions.Regex.Replace(result, 
+            @"([ক-হড়ঢ়য়])ৈ", "ৈ$1");
+
+        // Step 2: Apply character mapping
+        var mapping = new Dictionary<string, string>
+        {
+            // Common conjuncts - MUST be processed first (longer sequences)
+            {"র্থ", "_©"},  // R+Tha
+            {"জ্ঞ", "Á"},   // Gya
+            {"ক্ষ", "¶"},   // Ksha
+            {"ঞ্জ", "Ä"},   // NYa+Ja
+            {"ত্র", "Î"},   // Tra
+            {"ন্ত", "š"},   // Nta
+            {"ন্দ", "›`"},  // Nda
+            {"ন্ধ", "Ú"},   // Ndha
+            {"ম্প", "¤ú"},  // Mpa
+            {"ম্ব", "¤^"},  // Mba
+            {"ম্ম", "¤§"},  // Mma
+            {"ষ্ঠ", "ô"},   // Shtha
+            {"স্ত", "¯Í"},  // Sta
+            {"স্থ", "¯'"},  // Stha
+            {"হ্ম", "ý"},   // Hma
+            {"্র", "Ö"},   // Ra-fala (after any consonant)
+            {"র্", "©"},   // Ra-ref (before any consonant)
+            
+            // Vowels
+            {"অ", "A"}, {"আ", "Av"}, {"ই", "B"}, {"ঈ", "C"}, {"উ", "D"}, {"ঊ", "E"},
+            {"ঋ", "F"}, {"এ", "G"}, {"ঐ", "H"}, {"ও", "I"}, {"ঔ", "J"},
+            
+            // Consonants
+            {"ক", "K"}, {"খ", "L"}, {"গ", "M"}, {"ঘ", "N"}, {"ঙ", "O"},
+            {"চ", "P"}, {"ছ", "Q"}, {"জ", "R"}, {"ঝ", "S"}, {"ঞ", "T"},
+            {"ট", "U"}, {"ঠ", "V"}, {"ড", "W"}, {"ঢ", "X"}, {"ণ", "Y"},
+            {"ত", "Z"}, {"থ", "_"}, {"দ", "`"}, {"ধ", "a"}, {"ন", "b"},
+            {"প", "c"}, {"ফ", "d"}, {"ব", "e"}, {"ভ", "f"}, {"ম", "g"},
+            {"য", "h"}, {"র", "i"}, {"ল", "j"}, {"শ", "k"}, {"ষ", "l"},
+            {"স", "m"}, {"হ", "n"}, {"ড়", "o"}, {"ঢ়", "p"}, {"য়", "q"},
+            {"ৎ", "r"}, {"ং", "s"}, {"ঃ", "t"}, {"ঁ", "u"},
+            
+            // Kar (vowel signs)
+            {"া", "v"}, {"ি", "w"}, {"ী", "x"}, {"ু", "y"}, {"ূ", "z"},
+            {"ৃ", "…"}, {"ে", "†"}, {"ৈ", "‡"}, {"ো", "†v"}, {"ৌ", "‡Š"},
+            {"্", "&"}, {"ৗ", "Š"},
+            
+            // Numbers
+            {"০", "0"}, {"১", "1"}, {"২", "2"}, {"৩", "3"}, {"৪", "4"},
+            {"৫", "5"}, {"৬", "6"}, {"৭", "7"}, {"৮", "8"}, {"৯", "9"}
+        };
+        
+        // Process in order: longer sequences first (conjuncts), then individual characters
+        var sortedKeys = mapping.Keys.OrderByDescending(k => k.Length).ToList();
+        foreach (var key in sortedKeys)
+        {
+            result = result.Replace(key, mapping[key]);
+        }
+
+        return result;
+    }
+
     private static void ReplaceBanglaSubjectCell(W.Table table, int rowIndex, int colIndex, string text)
     {
         var rows = table.Elements<W.TableRow>().ToList();
@@ -331,6 +431,9 @@ public static class SaqQuestionGenerator
         var cells = rows[rowIndex].Elements<W.TableCell>().ToList();
         if (colIndex < 0 || colIndex >= cells.Count) return;
         var cell = cells[colIndex];
+
+        // Convert Unicode Bengali to SutonnyMJ ASCII encoding
+        string sutonnyMJText = ConvertUnicodeToSutonnyMJ(text);
 
         cell.RemoveAllChildren<W.Paragraph>();
         var para = new W.Paragraph();
@@ -340,7 +443,7 @@ public static class SaqQuestionGenerator
         rp.AppendChild(new W.RunFonts { Ascii = "SutonnyMJ", HighAnsi = "SutonnyMJ", EastAsia = "SutonnyMJ", ComplexScript = "SutonnyMJ" });
         rp.AppendChild(new W.RightToLeftText());
         run.AppendChild(rp);
-        run.AppendChild(new W.Text(text ?? string.Empty));
+        run.AppendChild(new W.Text(sutonnyMJText ?? string.Empty));
         para.AppendChild(run);
         cell.AppendChild(para);
     }
@@ -433,6 +536,90 @@ public static class SaqQuestionGenerator
             }
         }
         return cloned;
+    }
+
+    // Move images from /media/ to /word/media/ and update relationships
+    private static void FixImagePaths(string docPath)
+    {
+        try
+        {
+            using (var package = Package.Open(docPath, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var imageParts = package.GetParts().Where(p => 
+                    p.Uri.ToString().StartsWith("/media/") && 
+                    (p.ContentType.StartsWith("image/"))).ToList();
+
+                if (imageParts.Count == 0) return;
+
+                // Dictionary to map old URIs to new URIs
+                var uriMap = new Dictionary<string, string>();
+
+                // Copy images to /word/media/ and collect URI mappings
+                foreach (var oldPart in imageParts)
+                {
+                    string oldUri = oldPart.Uri.ToString();
+                    string fileName = System.IO.Path.GetFileName(oldUri);
+                    string newUri = $"/word/media/{fileName}";
+
+                    uriMap[oldUri] = newUri;
+
+                    // Create new part with correct URI
+                    var newPart = package.CreatePart(new Uri(newUri, UriKind.Relative), 
+                        oldPart.ContentType, CompressionOption.Normal);
+
+                    // Copy data
+                    using (var oldStream = oldPart.GetStream())
+                    using (var newStream = newPart.GetStream())
+                    {
+                        oldStream.CopyTo(newStream);
+                    }
+                }
+
+                // Update relationships in /word/_rels/document.xml.rels
+                try
+                {
+                    var docRelsPart = package.GetPart(new Uri("/word/_rels/document.xml.rels", UriKind.Relative));
+                    string relsContent;
+                    using (var stream = docRelsPart.GetStream())
+                    using (var reader = new StreamReader(stream))
+                    {
+                        relsContent = reader.ReadToEnd();
+                    }
+
+                    // Use XML-based replacement: change Target="/media/image.jpeg" to Target="media/image.jpeg"
+                    // This is safe because we're replacing the entire attribute value, not partial strings
+                    foreach (var mapping in uriMap)
+                    {
+                        string oldTarget = $"Target=\"{mapping.Key}\"";
+                        string newTarget = $"Target=\"media/{System.IO.Path.GetFileName(mapping.Value)}\"";
+                        relsContent = relsContent.Replace(oldTarget, newTarget);
+                    }
+
+                    // Write updated relationships
+                    using (var stream = docRelsPart.GetStream(FileMode.Create))
+                    using (var writer = new StreamWriter(stream))
+                    {
+                        writer.Write(relsContent);
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Relationship file doesn't exist - this is fine, document might not have relationships
+                }
+
+                // Delete old image parts from /media/
+                foreach (var oldPart in imageParts)
+                {
+                    package.DeletePart(oldPart.Uri);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // If fix fails, document still works, just not in modern format
+            // Log the error but don't fail document generation
+            System.Diagnostics.Debug.WriteLine($"Warning: Failed to fix image paths: {ex.Message}");
+        }
     }
 
     private static void EnsureTableBorders(W.Table table)

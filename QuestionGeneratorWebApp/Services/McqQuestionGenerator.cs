@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using System.Drawing;
+using System.IO.Packaging;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using W = DocumentFormat.OpenXml.Wordprocessing;
@@ -113,10 +114,97 @@ public static class McqQuestionGenerator
                 outMain.Document.Save();
             }
 
+            // Fix image paths after document creation to match modern Word format
+            FixImagePaths(finalDocPath);
+
             createdFiles.Add(outputFileName);
         }
 
         return createdFiles;
+    }
+
+    // Move images from /media/ to /word/media/ and update relationships
+    private static void FixImagePaths(string docPath)
+    {
+        try
+        {
+            using (var package = System.IO.Packaging.Package.Open(docPath, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var imageParts = package.GetParts().Where(p => 
+                    p.Uri.ToString().StartsWith("/media/") && 
+                    (p.ContentType.StartsWith("image/"))).ToList();
+
+                if (imageParts.Count == 0) return;
+
+                // Dictionary to map old URIs to new URIs
+                var uriMap = new Dictionary<string, string>();
+
+                // Copy images to /word/media/ and collect URI mappings
+                foreach (var oldPart in imageParts)
+                {
+                    string oldUri = oldPart.Uri.ToString();
+                    string fileName = Path.GetFileName(oldUri);
+                    string newUri = $"/word/media/{fileName}";
+
+                    uriMap[oldUri] = newUri;
+
+                    // Create new part with correct URI
+                    var newPart = package.CreatePart(new Uri(newUri, UriKind.Relative), 
+                        oldPart.ContentType, CompressionOption.Normal);
+
+                    // Copy data
+                    using (var oldStream = oldPart.GetStream())
+                    using (var newStream = newPart.GetStream())
+                    {
+                        oldStream.CopyTo(newStream);
+                    }
+                }
+
+                // Update relationships in /word/_rels/document.xml.rels
+                try
+                {
+                    var docRelsPart = package.GetPart(new Uri("/word/_rels/document.xml.rels", UriKind.Relative));
+                    string relsContent;
+                    using (var stream = docRelsPart.GetStream())
+                    using (var reader = new StreamReader(stream))
+                    {
+                        relsContent = reader.ReadToEnd();
+                    }
+
+                    // Use XML-based replacement: change Target="/media/image.jpeg" to Target="media/image.jpeg"
+                    // This is safe because we're replacing the entire attribute value, not partial strings
+                    foreach (var mapping in uriMap)
+                    {
+                        string oldTarget = $"Target=\"{mapping.Key}\"";
+                        string newTarget = $"Target=\"media/{Path.GetFileName(mapping.Value)}\"";
+                        relsContent = relsContent.Replace(oldTarget, newTarget);
+                    }
+
+                    // Write updated relationships
+                    using (var stream = docRelsPart.GetStream(FileMode.Create))
+                    using (var writer = new StreamWriter(stream))
+                    {
+                        writer.Write(relsContent);
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Relationship file doesn't exist - this is fine, document might not have relationships
+                }
+
+                // Delete old image parts from /media/
+                foreach (var oldPart in imageParts)
+                {
+                    package.DeletePart(oldPart.Uri);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // If fix fails, document still works, just not in modern format
+            // Log the error but don't fail document generation
+            System.Diagnostics.Debug.WriteLine($"Warning: Failed to fix image paths: {ex.Message}");
+        }
     }
 
     // Ensure styles/settings/sectPr exist like Word
@@ -483,9 +571,24 @@ public static class McqQuestionGenerator
         for (int col = 0; col < Math.Min(2, cells.Count); col++)
         {
             var cell = cells[col];
-            cell.RemoveAllChildren<W.Paragraph>();
-            var p = new W.Paragraph(new W.Run(new W.Text("Answer")));
-            cell.AppendChild(p);
+            
+            // Preserve all existing content (images, formulas, formatting) and append (Ans)
+            var paragraphs = cell.Elements<W.Paragraph>().ToList();
+            
+            if (paragraphs.Count == 0)
+            {
+                // Empty cell - add new paragraph with (Ans)
+                var p = new W.Paragraph(new W.Run(new W.Text("(Ans)")));
+                cell.AppendChild(p);
+            }
+            else
+            {
+                // Append " (Ans)" to the last paragraph without destroying existing content
+                var lastParagraph = paragraphs.Last();
+                
+                // Add a space and (Ans) as a new run to the last paragraph
+                lastParagraph.AppendChild(new W.Run(new W.Text(" (Ans)")));
+            }
         }
     }
 

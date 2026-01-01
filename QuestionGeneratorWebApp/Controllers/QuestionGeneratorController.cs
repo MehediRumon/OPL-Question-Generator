@@ -67,7 +67,8 @@ namespace QuestionGeneratorWebApp.Controllers
                     request.SubjectListEnglish,
                     request.SequenceList,
                     request.MultiSet,
-                    request.SetCount
+                    request.SetCount,
+                    request.QuestionType
                 );
 
                 if (files.Count > 0)
@@ -163,6 +164,18 @@ namespace QuestionGeneratorWebApp.Controllers
                     return NotFound(new { success = false, message = "File not found." });
 
                 var bytes = System.IO.File.ReadAllBytes(filePath);
+                
+                // Delete the file immediately after reading it for download
+                try
+                {
+                    System.IO.File.Delete(filePath);
+                    _logger.LogInformation($"File deleted after download: {fileName}");
+                }
+                catch (Exception deleteEx)
+                {
+                    _logger.LogWarning(deleteEx, $"Failed to delete file after download: {fileName}");
+                }
+                
                 return File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
             }
             catch (Exception ex)
@@ -202,14 +215,24 @@ namespace QuestionGeneratorWebApp.Controllers
                         for (int col = 0; col < Math.Min(2, cells.Count); col++)
                         {
                             var cell = cells[col];
-                            // Skip if cell is blank
-                            string originalClean = string.Join("", cell.Descendants<Text>().Select(t => t.Text)).Trim();
-                            if (string.IsNullOrWhiteSpace(originalClean)) continue;
-
-                            // Replace text with "Answer"
-                            cell.RemoveAllChildren<Paragraph>();
-                            var p = new Paragraph(new Run(new Text("Answer")));
-                            cell.AppendChild(p);
+                            
+                            // Preserve all existing content (images, formulas, formatting) and append (Ans)
+                            var paragraphs = cell.Elements<Paragraph>().ToList();
+                            
+                            if (paragraphs.Count == 0)
+                            {
+                                // Empty cell - add new paragraph with (Ans)
+                                var p = new Paragraph(new Run(new Text("(Ans)")));
+                                cell.AppendChild(p);
+                            }
+                            else
+                            {
+                                // Append " (Ans)" to the last paragraph without destroying existing content
+                                var lastParagraph = paragraphs.Last();
+                                
+                                // Add a space and (Ans) as a new run to the last paragraph
+                                lastParagraph.AppendChild(new Run(new Text(" (Ans)")));
+                            }
                         }
                     }
                     catch { continue; }
@@ -300,5 +323,6 @@ namespace QuestionGeneratorWebApp.Controllers
         public string SequenceList { get; set; } = "1-50,51-100";
         public bool MultiSet { get; set; } = false;
         public int SetCount { get; set; } = 1;
+        public string QuestionType { get; set; } = "SAQ"; // "SAQ" or "OW"
     }
 }

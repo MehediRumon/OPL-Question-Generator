@@ -47,9 +47,18 @@ public static class SaqQuestionGenerator
         int subjectCount = questionType == "OW" ? enSubjects.Count : bnSubjects.Count;
 
         var ranges = ParseRanges(sequenceList);
+        
+        // Validate that sequence ranges can fulfill the requested question count
+        int totalQuestionsInRanges = ranges.Sum(r => Math.Abs(r.end - r.start) + 1);
+        if (questionGenerateNumber > 0 && questionGenerateNumber > totalQuestionsInRanges)
+        {
+            throw new ArgumentException($"Number of Questions ({questionGenerateNumber}) exceeds total available in Sequence List ({totalQuestionsInRanges}). Please adjust either field.");
+        }
+        
         var createdFiles = new List<string>();
         string batchId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         int sets = (multiSet && setCount > 1) ? setCount : 1;
+        string prefix = questionType == "OW" ? "OW" : "SAQ";
 
         using (var sampleDoc = WordprocessingDocument.Open(saqSamplePath, false))
         {
@@ -62,7 +71,7 @@ public static class SaqQuestionGenerator
 
             if (sets == 1)
             {
-                string outFileName = $"SAQ_{batchId}.docx";
+                string outFileName = $"{prefix}_{batchId}.docx";
                 string outPath = System.IO.Path.Combine(outputDirectoryPath, outFileName);
 
                 using (var outDoc = WordprocessingDocument.Create(outPath, WordprocessingDocumentType.Document))
@@ -118,7 +127,7 @@ public static class SaqQuestionGenerator
             {
                 for (int setIndex = 1; setIndex <= sets; setIndex++)
                 {
-                    string outFileName = $"SAQ_Set{setIndex}_{batchId}.docx";
+                    string outFileName = $"{prefix}_Set{setIndex}_{batchId}.docx";
                     string outPath = System.IO.Path.Combine(outputDirectoryPath, outFileName);
 
                     using (var outDoc = WordprocessingDocument.Create(outPath, WordprocessingDocumentType.Document))
